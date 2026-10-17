@@ -13,7 +13,7 @@
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <lwjgl.version>3.3.3</lwjgl.version>
-        <main.class>com.graphics.App</main.class>
+        <main.class>com.graphics.Vehiculo</main.class>
     </properties>
 
     <dependencies>
