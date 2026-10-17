@@ -1,0 +1,15 @@
+# Salidas de compilación de Maven
+target/
+*.class
+
+# Archivos de configuración del IDE (VS Code / Eclipse / IntelliJ)
+.vscode/
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+
+# Archivos temporales del sistema operativo
+.DS_Store
+Thumbs.db
