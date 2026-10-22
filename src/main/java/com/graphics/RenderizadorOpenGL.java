@@ -40,6 +40,18 @@ public class RenderizadorOpenGL {
         cajaGirada(x, y, z, sx, sy, sz, r, g, b, 0.0f, 0.0f);
     }
 
+    // Dibuja rectángulos 2D en coordenadas de pantalla normalizadas (-1 a 1) para el HUD
+    public void dibujarRect2D(float ndcX, float ndcY, float ndcW, float ndcH, float r, float g, float b) {
+        decimal("uModoHUD", 1.0f);
+        vector("uColor", r, g, b);
+        vector("uPos", ndcX, ndcY, 0.0f);
+        vector("uEscala", ndcW, ndcH, 1.0f);
+        decimal("uGiro", 0.0f);
+        decimal("uEmision", 1.0f);
+        GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, 36);
+        decimal("uModoHUD", 0.0f);
+    }
+
     public void vector(String nombre, float x, float y, float z) {
         GL20.glUniform3f(obtenerUniform(nombre), x, y, z);
     }
@@ -101,11 +113,20 @@ public class RenderizadorOpenGL {
             uniform vec3 uObjetivo;
             uniform float uAspecto;
             uniform float uModoMapa;
+            uniform float uModoHUD;
 
             out vec3 vMundo;
             out vec3 vNormal;
 
             void main() {
+                if (uModoHUD > 0.5) {
+                    // Modo Interfaz 2D directa (HUD)
+                    gl_Position = vec4(aPos.x * uEscala.x + uPos.x, aPos.y * uEscala.y + uPos.y, 0.0, 1.0);
+                    vMundo = vec3(0.0);
+                    vNormal = vec3(0.0, 0.0, 1.0);
+                    return;
+                }
+
                 float c = cos(uGiro);
                 float s = sin(uGiro);
                 mat3 rotY = mat3(
@@ -167,15 +188,16 @@ public class RenderizadorOpenGL {
             uniform vec3 uFaroDir;
             uniform float uFarosActivos;
             uniform float uModoMapa;
+            uniform float uModoHUD;
 
             void main() {
-                if (uModoMapa > 0.5) {
+                if (uModoHUD > 0.5 || uModoMapa > 0.5) {
                     FragColor = vec4(uColor, 1.0);
                     return;
                 }
 
                 if (uEmision > 0.5) {
-                    FragColor = vec4(uColor * 1.5, 1.0);
+                    FragColor = vec4(uColor * 1.3, 1.0);
                     return;
                 }
 
@@ -183,17 +205,20 @@ public class RenderizadorOpenGL {
                 float diffDir = max(dot(N, normalize(uLuzDir)), 0.0);
                 vec3 iluminacion = uLuzAmbiente + (uLuzDirColor * diffDir);
 
+                // LUZ DE FAROLAS ATENUADA Y SUAVE (No quema ni satura el asfalto)
                 for (int i = 0; i < 9; i++) {
                     vec3 lDir = uFarolasPos[i] - vMundo;
                     float dist = length(lDir);
-                    if (dist < 65.0) {
-                        float att = 1.0 / (1.0 + 0.035 * dist + 0.0055 * dist * dist);
+                    if (dist < 38.0) {
+                        // Caída cuadrática balanceada para evitar reflejo excesivo
+                        float att = 1.0 / (1.0 + 0.12 * dist + 0.025 * dist * dist);
                         float diffPunto = max(dot(N, normalize(lDir)), 0.0);
-                        vec3 colorFarolaVial = (uEsNoche > 0.5) ? vec3(1.0, 0.96, 0.82) * 5.8 : vec3(0.9, 0.9, 0.8) * 0.6;
-                        iluminacion += colorFarolaVial * diffPunto * att;
+                        vec3 colorFarola = (uEsNoche > 0.5) ? vec3(1.0, 0.94, 0.82) * 1.6 : vec3(0.8, 0.8, 0.7) * 0.3;
+                        iluminacion += colorFarola * diffPunto * att;
                     }
                 }
 
+                // Faros del auto
                 if (uFarosActivos > 0.5) {
                     vec3 dirFaroNorm = normalize(uFaroDir);
 
@@ -201,27 +226,27 @@ public class RenderizadorOpenGL {
                     float dist1 = length(d1);
                     vec3 d1N = normalize(-d1);
                     float theta1 = dot(d1N, dirFaroNorm);
-                    if (theta1 > 0.80 && dist1 < 45.0) {
-                        float att1 = (theta1 - 0.80) / 0.20 * (1.0 / (1.0 + 0.04 * dist1 + 0.01 * dist1 * dist1));
+                    if (theta1 > 0.82 && dist1 < 40.0) {
+                        float att1 = (theta1 - 0.82) / 0.18 * (1.0 / (1.0 + 0.08 * dist1 + 0.02 * dist1 * dist1));
                         float diff1 = max(dot(N, normalize(d1)), 0.0);
-                        iluminacion += vec3(1.0, 1.0, 0.94) * diff1 * att1 * 4.0;
+                        iluminacion += vec3(1.0, 1.0, 0.95) * diff1 * att1 * 2.5;
                     }
 
                     vec3 d2 = uFaro2Pos - vMundo;
                     float dist2 = length(d2);
                     vec3 d2N = normalize(-d2);
                     float theta2 = dot(d2N, dirFaroNorm);
-                    if (theta2 > 0.80 && dist2 < 45.0) {
-                        float att2 = (theta2 - 0.80) / 0.20 * (1.0 / (1.0 + 0.04 * dist2 + 0.01 * dist2 * dist2));
+                    if (theta2 > 0.82 && dist2 < 40.0) {
+                        float att2 = (theta2 - 0.82) / 0.18 * (1.0 / (1.0 + 0.08 * dist2 + 0.02 * dist2 * dist2));
                         float diff2 = max(dot(N, normalize(d2)), 0.0);
-                        iluminacion += vec3(1.0, 1.0, 0.94) * diff2 * att2 * 4.0;
+                        iluminacion += vec3(1.0, 1.0, 0.95) * diff2 * att2 * 2.5;
                     }
                 }
 
                 vec3 colFinal = uColor * iluminacion;
                 float dCam = length(vMundo - uOjo);
-                float factorNiebla = clamp((dCam - 150.0) / 200.0, 0.0, 0.45);
-                vec3 colCielo = (uEsNoche > 0.5) ? vec3(0.010, 0.010, 0.025) : vec3(0.55, 0.72, 0.92);
+                float factorNiebla = clamp((dCam - 140.0) / 180.0, 0.0, 0.40);
+                vec3 colCielo = (uEsNoche > 0.5) ? vec3(0.08, 0.08, 0.14) : vec3(0.68, 0.85, 0.90);
                 colFinal = mix(colFinal, colCielo, factorNiebla);
 
                 FragColor = vec4(colFinal, 1.0);
@@ -258,5 +283,77 @@ public class RenderizadorOpenGL {
         if (vbo != 0) GL15.glDeleteBuffers(vbo);
         if (vao != 0) GL30.glDeleteVertexArrays(vao);
         if (programa != 0) GL20.glDeleteProgram(programa);
+    }
+    // Dibuja texto pixel-art en coordenadas de pantalla normalizadas (-1 a 1)
+    public void dibujarTextoPixel(String texto, float startX, float startY, float tamPixel, float r, float g, float b) {
+        float xCursor = startX;
+        for (char c : texto.toUpperCase().toCharArray()) {
+            boolean[][] mapa = switch (c) {
+                case 'A' -> new boolean[][]{
+                    {false, true, true, false},
+                    {true, false, false, true},
+                    {true, true, true, true},
+                    {true, false, false, true},
+                    {true, false, false, true}
+                };
+                case 'R' -> new boolean[][]{
+                    {true, true, true, false},
+                    {true, false, false, true},
+                    {true, true, true, false},
+                    {true, false, true, false},
+                    {true, false, false, true}
+                };
+                case 'E' -> new boolean[][]{
+                    {true, true, true, true},
+                    {true, false, false, false},
+                    {true, true, true, false},
+                    {true, false, false, false},
+                    {true, true, true, true}
+                };
+                case 'S' -> new boolean[][]{
+                    {false, true, true, true},
+                    {true, false, false, false},
+                    {false, true, true, false},
+                    {false, false, false, true},
+                    {true, true, true, false}
+                };
+                case 'T' -> new boolean[][]{
+                    {true, true, true, true, true},
+                    {false, false, true, false, false},
+                    {false, false, true, false, false},
+                    {false, false, true, false, false},
+                    {false, false, true, false, false}
+                };
+                case 'D' -> new boolean[][]{
+                    {true, true, true, false},
+                    {true, false, false, true},
+                    {true, false, false, true},
+                    {true, false, false, true},
+                    {true, true, true, false}
+                };
+                case 'O' -> new boolean[][]{
+                    {false, true, true, false},
+                    {true, false, false, true},
+                    {true, false, false, true},
+                    {true, false, false, true},
+                    {false, true, true, false}
+                };
+                case ' ' -> new boolean[5][2];
+                default -> new boolean[][]{
+                    {true, true}, {true, true}, {true, true}, {true, true}, {true, true}
+                };
+            };
+
+            for (int fila = 0; fila < mapa.length; fila++) {
+                for (int col = 0; col < mapa[fila].length; col++) {
+                    if (mapa[fila][col]) {
+                        float px = xCursor + col * tamPixel;
+                        float py = startY - fila * (tamPixel * 1.35f);
+                        dibujarRect2D(px, py, tamPixel * 0.92f, tamPixel * 1.25f, r, g, b);
+                    }
+                }
+            }
+            xCursor += (mapa[0].length + 1) * tamPixel;
+        }
     }
 }

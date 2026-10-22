@@ -3,6 +3,7 @@ package com.graphics;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
+
 import org.lwjgl.opengl.GL11;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +25,8 @@ public class AppCiudad {
 
     public List<float[]> postesSemaforos = new ArrayList<>();
     protected TraficoManager.AutoTrafico[] trafico;
+
+    protected PeatonesManager.Peaton[] peatones;
 
     public void run() {
         GLFWErrorCallback.createPrint(System.err).set();
@@ -63,7 +66,7 @@ public class AppCiudad {
         recolectarPostesSemaforos();
         destinoX = ConstantesCiudad.centro(6);
         destinoZ = ConstantesCiudad.centro(2);
-
+        peatones = PeatonesManager.crearPeatones();
         renderizador.inicializar();
     }
 
@@ -96,6 +99,11 @@ public class AppCiudad {
         tiempoGlobal += dt;
         if (GLFW.glfwGetKey(ventana, GLFW.GLFW_KEY_LEFT) == GLFW.GLFW_PRESS) orbita -= dt * 1.2f;
         if (GLFW.glfwGetKey(ventana, GLFW.GLFW_KEY_RIGHT) == GLFW.GLFW_PRESS) orbita += dt * 1.2f;
+        if (peatones != null) {
+            for (PeatonesManager.Peaton p : peatones) {
+                p.actualizar(dt);
+            }
+        }
     }
 
     private void loop() {
@@ -122,11 +130,11 @@ public class AppCiudad {
         }
     }
 
-    private void dibujarFrame() {
+   private void dibujarFrame() {
         if (modoNoche) {
-            GL11.glClearColor(0.010f, 0.010f, 0.025f, 1.0f);
+            GL11.glClearColor(0.08f, 0.08f, 0.14f, 1.0f); // Noche limpia diorama
         } else {
-            GL11.glClearColor(0.55f, 0.72f, 0.92f, 1.0f);
+            GL11.glClearColor(0.68f, 0.85f, 0.90f, 1.0f); // Cielo diurno suave
         }
         GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
 
@@ -159,15 +167,17 @@ public class AppCiudad {
         renderizador.decimal("uAspecto", (float) ancho / (float) alto);
     }
 
-    protected void configurarLuces() {
+protected void configurarLuces() {
         if (modoNoche) {
+            // Tonalidad nocturna con matiz violáceo y neón ambiental
             renderizador.vector("uLuzDir", 0.2f, 0.95f, 0.2f);
-            renderizador.vector("uLuzDirColor", 0.10f, 0.12f, 0.20f);
-            renderizador.vector("uLuzAmbiente", 0.20f, 0.22f, 0.30f);
+            renderizador.vector("uLuzDirColor", 0.25f, 0.10f, 0.35f);
+            renderizador.vector("uLuzAmbiente", 0.30f, 0.20f, 0.38f);
         } else {
+            // Sol tropical cálido
             renderizador.vector("uLuzDir", 0.6f, 0.85f, 0.4f);
-            renderizador.vector("uLuzDirColor", 0.88f, 0.88f, 0.82f);
-            renderizador.vector("uLuzAmbiente", 0.48f, 0.48f, 0.50f);
+            renderizador.vector("uLuzDirColor", 1.0f, 0.95f, 0.85f);
+            renderizador.vector("uLuzAmbiente", 0.52f, 0.50f, 0.55f);
         }
 
         for (int i = 0; i < 9; i++) {
@@ -180,12 +190,13 @@ public class AppCiudad {
         renderizador.decimal("uFarosActivos", 0.0f);
     }
 
+    //@Override
     protected void escena() {
         float limite = ConstantesCiudad.LIMITE;
         int[][] mapa = ConstantesCiudad.MAPA;
 
-        // Asfalto
-        renderizador.caja(0, -0.2f, 0, limite * 2.0f, 0.4f, limite * 2.0f, 0.14f, 0.14f, 0.15f, 0.0f);
+        // Suelo de asfalto cálido (gris oscuro maqueta)
+        renderizador.caja(0, -0.2f, 0, limite * 2.0f, 0.4f, limite * 2.0f, 0.32f, 0.33f, 0.35f, 0.0f);
         dibujarVialidadYCebras();
 
         for (int f = 0; f < mapa.length; f++) {
@@ -200,10 +211,10 @@ public class AppCiudad {
                     case 3 -> EdificiosCiudad.dibujarHospital(renderizador, px, pz, modoNoche);
                     case 4 -> EdificiosCiudad.dibujarPolicia(renderizador, px, pz, tiempoGlobal, modoNoche);
                     case 5 -> EdificiosCiudad.dibujarMall(renderizador, px, pz, modoNoche);
-                    case 6 -> EdificiosCiudad.dibujarComida(renderizador, px, pz, modoNoche);
-                    case 7 -> EdificiosCiudad.dibujarTaller(renderizador, px, pz);
-                    case 8 -> EdificiosCiudad.dibujarGasolinera(renderizador, px, pz, modoNoche);
-                    case 9 -> EdificiosCiudad.dibujarColegio(renderizador, px, pz, modoNoche);
+                    case 6 -> EdificiosCiudad.dibujarHamburgueseria(renderizador, px, pz, modoNoche); // Burger Diner
+                    case 7 -> EdificiosCiudad.dibujarTiendaDonas(renderizador, px, pz, modoNoche);     // Donut Shop
+                    case 8 -> EdificiosCiudad.dibujarGasolinera(renderizador, px, pz, modoNoche);      // Gas Station
+                    case 9 -> EdificiosCiudad.dibujarCanchaFutbol(renderizador, px, pz);               // Football field
                     default -> {
                         if (f % 2 == 0 && c % 2 == 0 && (f + c) % 4 == 0) {
                             EdificiosCiudad.dibujarInterseccionSemaforos(renderizador, px, pz, tiempoGlobal);
@@ -213,18 +224,17 @@ public class AppCiudad {
             }
         }
 
-        // Farolas
+        // Postes de alumbrado público (Lámparas esbeltas tipo maqueta)
         for (int i = 0; i < 9; i++) {
             float fx = ConstantesCiudad.POS_FAROLAS[i][0];
             float fz = ConstantesCiudad.POS_FAROLAS[i][1];
-            renderizador.caja(fx, 3.4f, fz, 0.24f, 6.8f, 0.24f, 0.20f, 0.20f, 0.24f, 0.0f);
-            renderizador.caja(fx + 1.5f, 6.5f, fz, 3.0f, 0.16f, 0.20f, 0.20f, 0.20f, 0.24f, 0.0f);
+            renderizador.caja(fx, 3.4f, fz, 0.16f, 6.8f, 0.16f, 0.85f, 0.85f, 0.90f, 0.0f);
+            renderizador.caja(fx + 1.2f, 6.5f, fz, 2.4f, 0.12f, 0.14f, 0.85f, 0.85f, 0.90f, 0.0f);
 
             float emision = modoNoche ? 1.0f : 0.0f;
-            renderizador.caja(fx + 3.0f, 6.35f, fz, 1.40f, 0.24f, 0.70f, 1.0f, 0.98f, 0.85f, emision);
-            renderizador.caja(fx + 3.0f, 6.20f, fz, 1.20f, 0.06f, 0.55f, 1.0f, 1.0f, 0.95f, emision);
+            renderizador.caja(fx + 2.4f, 6.35f, fz, 0.80f, 0.20f, 0.50f, 1.0f, 0.95f, 0.80f, emision);
         }
-
+        PeatonesManager.dibujarPeatones(renderizador, peatones, tiempoGlobal);
         TraficoManager.dibujar(renderizador, trafico, tiempoGlobal, modoNoche);
         dibujarDestino();
     }
