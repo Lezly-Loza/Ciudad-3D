@@ -2,10 +2,11 @@ package com.graphics;
 
 public class PeatonesManager {
     public static class Peaton {
-        float x, z, dirX, dirZ, angulo;
-        float r, g, b; // Color de camisa
-        float minVal, maxVal;
-        boolean ejeX;
+        public float x, z, dirX, dirZ, angulo;
+        public float r, g, b;
+        public float minVal, maxVal;
+        public boolean ejeX;
+        public boolean atropellado = false;
 
         public Peaton(float x, float z, boolean ejeX, float minVal, float maxVal, float r, float g, float b) {
             this.x = x;
@@ -20,6 +21,7 @@ public class PeatonesManager {
         }
 
         public void actualizar(float dt) {
+            if (atropellado) return;
             float vel = 1.8f;
             if (ejeX) {
                 x += dirX * vel * dt;
@@ -29,6 +31,15 @@ public class PeatonesManager {
                 z += dirZ * vel * dt;
                 if (z > maxVal) { dirZ = -1.0f; angulo = (float)Math.PI; }
                 if (z < minVal) { dirZ = 1.0f; angulo = 0.0f; }
+            }
+        }
+
+        public void actualizar(float dt, float autoX, float autoZ) {
+            actualizar(dt);
+            float dx = autoX - x;
+            float dz = autoZ - z;
+            if ((dx * dx + dz * dz) < (1.2f * 1.2f)) {
+                atropellado = true;
             }
         }
     }
@@ -45,11 +56,14 @@ public class PeatonesManager {
     public static void dibujarPeatones(RenderizadorOpenGL r, Peaton[] peatones, float tiempoGlobal) {
         if (peatones == null) return;
         for (Peaton p : peatones) {
-            dibujarHumanoide(r, p.x, p.z, p.angulo, p.r, p.g, p.b, tiempoGlobal, false);
+            if (p.atropellado) {
+                dibujarHumanoide(r, p.x, p.z, p.angulo, 0.85f, 0.2f, 0.2f, 0.0f, false);
+            } else {
+                dibujarHumanoide(r, p.x, p.z, p.angulo, p.r, p.g, p.b, tiempoGlobal, false);
+            }
         }
     }
 
-    // Modelo 3D de persona articulada estilo diorama
     public static void dibujarHumanoide(RenderizadorOpenGL r, float x, float z, float rot,
                                          float cr, float cg, float cb, float tiempo, boolean manosArriba) {
         float fX = -(float) Math.sin(rot);
@@ -59,7 +73,6 @@ public class PeatonesManager {
 
         float oscilacion = (float) Math.sin(tiempo * 8.0f) * 0.22f;
 
-        // Piernas (Pantalón azul marino)
         if (!manosArriba) {
             r.cajaGirada(x - dX * 0.12f + fX * oscilacion, 0.35f, z - dZ * 0.12f + fZ * oscilacion, 0.14f, 0.70f, 0.14f, 0.18f, 0.22f, 0.35f, 0.0f, rot);
             r.cajaGirada(x + dX * 0.12f - fX * oscilacion, 0.35f, z + dZ * 0.12f - fZ * oscilacion, 0.14f, 0.70f, 0.14f, 0.18f, 0.22f, 0.35f, 0.0f, rot);
@@ -68,12 +81,9 @@ public class PeatonesManager {
             r.cajaGirada(x + dX * 0.12f, 0.35f, z + dZ * 0.12f, 0.14f, 0.70f, 0.14f, 0.18f, 0.22f, 0.35f, 0.0f, rot);
         }
 
-        // Torso / Camisa
         r.cajaGirada(x, 0.95f, z, 0.42f, 0.55f, 0.26f, cr, cg, cb, 0.0f, rot);
 
-        // Brazos
         if (manosArriba) {
-            // Brazos alzados en señal de rendición
             r.cajaGirada(x - dX * 0.28f, 1.35f, z - dZ * 0.28f, 0.11f, 0.45f, 0.11f, cr, cg, cb, 0.0f, rot);
             r.cajaGirada(x + dX * 0.28f, 1.35f, z + dZ * 0.28f, 0.11f, 0.45f, 0.11f, cr, cg, cb, 0.0f, rot);
         } else {
@@ -81,9 +91,7 @@ public class PeatonesManager {
             r.cajaGirada(x + dX * 0.28f + fX * oscilacion, 0.90f, z + dZ * 0.28f + fZ * oscilacion, 0.11f, 0.45f, 0.11f, cr, cg, cb, 0.0f, rot);
         }
 
-        // Cabeza (Tono piel)
         r.cajaGirada(x, 1.40f, z, 0.28f, 0.30f, 0.28f, 0.95f, 0.80f, 0.65f, 0.0f, rot);
-        // Cabello / Gorra
         r.cajaGirada(x, 1.54f, z, 0.30f, 0.10f, 0.30f, 0.30f, 0.20f, 0.12f, 0.0f, rot);
     }
 }
